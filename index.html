@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>死亡遊戲 - The Seven Deadly Sins (Extended Cut)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;500;700;900&family=Share+Tech+Mono&display=swap');
+
+        body {
+            background-color: #000;
+            color: #d4d4d4;
+            font-family: 'Noto Serif TC', serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* --- CRT SCREEN CONTAINER --- */
+        .crt-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            overflow: hidden;
+            perspective: 1000px; 
+        }
+
+        .crt-screen {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: radial-gradient(circle, #1a0505 0%, #080000 100%);
+            overflow: hidden;
+            text-shadow: 2px 0 rgba(255, 0, 0, 0.5), -2px 0 rgba(0, 255, 255, 0.3);
+        }
+
+        /* 1. SCANLINES */
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(0,0,0,0) 50%,
+                rgba(0,0,0,0.5) 50%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* 2. RGB SPLIT & NOISE */
+        .noise {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: 40;
+            animation: noise-anim 0.5s infinite;
+        }
+
+        @keyframes noise-anim {
+            0% { transform: translate(0,0); }
+            10% { transform: translate(-5%,-5%); }
+            20% { transform: translate(-10%,5%); }
+            30% { transform: translate(5%,-10%); }
+            40% { transform: translate(-5%,15%); }
+            50% { transform: translate(-10%,5%); }
+            60% { transform: translate(15%,0); }
+            70% { transform: translate(0,10%); }
+            80% { transform: translate(-15%,0); }
+            90% { transform: translate(10%,5%); }
+            100% { transform: translate(5%,0); }
+        }
+
+        /* 3. VIGNETTE */
+        .vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 180px rgba(0,0,0,1);
+            pointer-events: none;
+            z-index: 51;
+        }
+
+        /* 4. SCAN BAR */
+        .scan-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 50, 50, 0.08);
+            position: absolute;
+            z-index: 52;
+            top: -10%;
+            animation: scanMove 8s linear infinite;
+            pointer-events: none;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.2);
+        }
+
+        @keyframes scanMove {
+            0% { top: -10%; }
+            100% { top: 110%; }
+        }
+
+        /* 5. TEXT & VECTOR GLOW */
+        .glow-red {
+            filter: drop-shadow(0 0 5px rgba(220, 38, 38, 0.8)) drop-shadow(0 0 10px rgba(220, 38, 38, 0.4));
+            color: #ef4444;
+        }
+        .glow-green {
+            filter: drop-shadow(0 0 5px rgba(34, 197, 94, 0.8)) drop-shadow(0 0 10px rgba(34, 197, 94, 0.4));
+            color: #22c55e;
+        }
+        .glow-blue {
+            filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8)) drop-shadow(0 0 10px rgba(59, 130, 246, 0.4));
+            color: #3b82f6;
+        }
+        
+        .text-phosphor {
+            text-shadow: 0 0 2px rgba(255, 200, 200, 0.6), 0 0 8px rgba(255, 0, 0, 0.2);
+        }
+
+        /* 6. GLITCH ANIMATIONS */
+        .glitch-text {
+            animation: glitch-anim 3s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { transform: skew(0deg); opacity: 1; }
+            3% { transform: skew(2deg); opacity: 0.9; }
+            4% { transform: skew(-2deg); opacity: 1; }
+            5% { transform: skew(0deg); opacity: 1; }
+            95% { transform: skew(0deg); opacity: 1; }
+            96% { transform: skew(1deg); opacity: 0.8; }
+            97% { transform: skew(-3deg); opacity: 1; }
+            100% { transform: skew(0deg); opacity: 1; }
+        }
+
+        /* UI Styles */
+        .ui-panel {
+            border: 2px solid rgba(185, 28, 28, 0.3);
+            background-color: rgba(10, 0, 0, 0.7);
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.1), inset 0 0 40px rgba(0,0,0,0.8);
+            backdrop-filter: blur(3px);
+            position: relative;
+        }
+
+        .ui-panel::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px;
+            width: 20px; height: 20px;
+            border-top: 2px solid #ef4444;
+            border-left: 2px solid #ef4444;
+            z-index: 10;
+        }
+        .ui-panel::after {
+            content: '';
+            position: absolute;
+            bottom: -2px; right: -2px;
+            width: 20px; height: 20px;
+            border-bottom: 2px solid #ef4444;
+            border-right: 2px solid #ef4444;
+            z-index: 10;
+        }
+
+        .typewriter-cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background-color: #ef4444; 
+            margin-left: 4px;
+            box-shadow: 0 0 8px #ef4444;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #444; border: 1px solid #000; }
+        
+        .report-pattern {
+            background-image: linear-gradient(0deg, transparent 24%, rgba(255, 0, 0, .05) 25%, rgba(255, 0, 0, .05) 26%, transparent 27%, transparent 74%, rgba(255, 0, 0, .05) 75%, rgba(255, 0, 0, .05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(255, 0, 0, .05) 25%, rgba(255, 0, 0, .05) 26%, transparent 27%, transparent 74%, rgba(255, 0, 0, .05) 75%, rgba(255, 0, 0, .05) 76%, transparent 77%, transparent);
+            background-size: 30px 30px;
+        }
+
+        /* SVG Vector Styles */
+        .vector-path {
+            fill: none;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            vector-effect: non-scaling-stroke;
+        }
+        
+        .vector-anim {
+            animation: vector-jitter 4s infinite ease-in-out;
+        }
+
+        @keyframes vector-jitter {
+            0% { transform: scale(1) translate(0,0); }
+            50% { transform: scale(1.02) translate(1px, -1px); }
+            52% { transform: scale(0.98) translate(-2px, 2px); }
+            54% { transform: scale(1) translate(0,0); }
+            100% { transform: scale(1) translate(0,0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- NEW VECTOR SCENES (Wireframe Style) ---
+
+        const PlayerVisual = () => (
+            <div className="w-full flex justify-center mb-6">
+                <svg viewBox="0 0 200 150" className="w-48 h-36 glow-blue vector-anim">
+                    <path d="M70,50 L130,50 L120,110 L80,110 Z" className="vector-path" stroke="currentColor" />
+                    <path d="M70,50 L100,20 L130,50" className="vector-path" stroke="currentColor" />
+                    <rect x="85" y="65" width="10" height="5" stroke="currentColor" fill="none" />
+                    <rect x="105" y="65" width="10" height="5" stroke="currentColor" fill="none" />
+                    <path d="M100,110 L100,130 M80,130 L120,130" className="vector-path" stroke="currentColor" />
+                    <text x="100" y="145" fontSize="12" fill="currentColor" textAnchor="middle" fontFamily="monospace">SUBJECT #000</text>
+                    <line x1="60" y1="40" x2="140" y2="40" stroke="currentColor" strokeDasharray="4,4" opacity="0.5" />
+                </svg>
+            </div>
+        );
+
+        const ChairVisual = () => (
+            <div className="w-full flex justify-center mb-6">
+                <svg viewBox="0 0 200 150" className="w-48 h-36 glow-red vector-anim">
+                    <path d="M60,120 L140,120 L130,80 L70,80 Z" className="vector-path" stroke="currentColor" />
+                    <path d="M70,80 L70,40 L130,40 L130,80" className="vector-path" stroke="currentColor" />
+                    <path d="M50,90 L70,90 M130,90 L150,90" className="vector-path" stroke="currentColor" />
+                    <path d="M100,40 L100,10 M90,10 L110,10" className="vector-path" stroke="currentColor" />
+                    <path d="M100,10 C120,10 140,20 160,10" className="vector-path" stroke="currentColor" strokeDasharray="2,2" />
+                    <path d="M50,50 L60,70 L40,80 L50,100" className="vector-path" stroke="currentColor" opacity="0.6">
+                        <animate attributeName="opacity" values="0;1;0" dur="0.2s" repeatCount="indefinite" />
+                    </path>
+                    <path d="M150,50 L140,70 L160,80 L150,100" className="vector-path" stroke="currentColor" opacity="0.6">
+                        <animate attributeName="opacity" values="0;1;0" dur="0.3s" repeatCount="indefinite" />
+                    </path>
+                </svg>
+            </div>
+        );
+
+        const ScalesVisual = () => (
+            <div className="w-full flex justify-center mb-6">
+                <svg viewBox="0 0 200 150" className="w-48 h-36 glow-red vector-anim">
+                    <path d="M100,20 L100,130 M80,130 L120,130" className="vector-path" stroke="currentColor" />
+                    <path d="M40,40 L160,40" className="vector-path" stroke="currentColor" />
+                    <path d="M40,40 L20,90 L60,90 L40,40" className="vector-path" stroke="currentColor" />
+                    <path d="M160,40 L140,70 L180,70 L160,40" className="vector-path" stroke="currentColor" />
+                    <circle cx="100" cy="40" r="5" stroke="currentColor" fill="none" />
+                </svg>
+            </div>
+        );
+
+        const ExitVisual = () => (
+            <div className="w-full flex justify-center mb-6">
+                <svg viewBox="0 0 200 150" className="w-48 h-36 glow-green vector-anim">
+                    <path d="M60,30 L140,30 L140,130 L60,130 Z" className="vector-path" stroke="currentColor" />
+                    <path d="M50,20 L150,20 L150,140 L50,140 Z" className="vector-path" stroke="currentColor" strokeDasharray="4,4" opacity="0.5" />
+                    <line x1="50" y1="20" x2="60" y2="30" stroke="currentColor" />
+                    <line x1="150" y1="20" x2="140" y2="30" stroke="currentColor" />
+                    <line x1="50" y1="140" x2="60" y2="130" stroke="currentColor" />
+                    <line x1="150" y1="140" x2="140" y2="130" stroke="currentColor" />
+                    <path d="M70,130 L90,80 L110,130" stroke="currentColor" fill="none" opacity="0.3" />
+                    <text x="100" y="70" fontSize="16" fill="currentColor" textAnchor="middle" fontFamily="monospace" letterSpacing="4px">EXIT</text>
+                </svg>
+            </div>
+        );
+
+        const SkullVisual = () => (
+            <div className="w-full flex justify-center mb-6">
+                <svg viewBox="0 0 200 150" className="w-48 h-36 glow-red vector-anim">
+                    <path d="M70,40 C70,10 130,10 130,40 L130,80 L110,110 L90,110 L70,80 Z" className="vector-path" stroke="currentColor" />
+                    <rect x="80" y="50" width="15" height="15" stroke="currentColor" fill="none" />
+                    <rect x="105" y="50" width="15" height="15" stroke="currentColor" fill="none" />
+                    <path d="M100,80 L95,90 L105,90 Z" stroke="currentColor" fill="none" />
+                    <line x1="90" y1="110" x2="90" y2="100" stroke="currentColor" />
+                    <line x1="100" y1="110" x2="100" y2="100" stroke="currentColor" />
+                    <line x1="110" y1="110" x2="110" y2="100" stroke="currentColor" />
+                    <line x1="50" y1="20" x2="150" y2="130" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+                    <line x1="150" y1="20" x2="50" y2="130" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+                </svg>
+            </div>
+        );
+
+        const SecretVisual = () => (
+             <div className="w-full flex justify-center mb-6">
+                <svg viewBox="0 0 200 150" className="w-48 h-36 glow-green vector-anim">
+                    <rect x="40" y="30" width="120" height="90" stroke="currentColor" fill="none" strokeDasharray="8,4" />
+                    <path d="M60,50 L140,50" stroke="currentColor" />
+                    <path d="M60,70 L120,70" stroke="currentColor" />
+                    <path d="M60,90 L100,90" stroke="currentColor" />
+                    <text x="100" y="110" fontSize="14" fill="currentColor" textAnchor="middle" fontFamily="monospace">SYSTEM_FAILURE</text>
+                    <rect x="0" y="0" width="200" height="150" fill="currentColor" opacity="0.1">
+                        <animate attributeName="opacity" values="0;0.2;0" dur="0.1s" repeatCount="indefinite" />
+                    </rect>
+                </svg>
+            </div>
+        );
+
+        // --- Game Data (Extended Story) ---
+        const gameData = {
+            start: {
+                title: "序章：第五名罪人",
+                visual: <PlayerVisual />,
+                content: [
+                    "你的意識在刺骨的寒意中甦醒。睜開眼，你發現自己身處一個封閉的混凝土房間。空氣中瀰漫著鐵鏽、發霉與臭氧混合的刺鼻氣味，天花板上的白熾燈忽明忽滅，發出令人焦躁的滋滋聲。",
+                    "「滋... 系統校準完成。」牆上的擴音器傳來經過變聲處理的機械音，冰冷得不像人類：『歡迎來到生存計量室。我是你們的引導者，也是審判者。』",
+                    "你環顧四周，四個陌生人也正驚恐地看著你。他們眼中的恐懼不僅是因為這個環境，更是因為你——或者說，因為你手中緊握的那把左輪手槍。",
+                    "『檔案編號 #000：執行者。罪名：【冷漠】。』機械音彷彿穿透了你的頭骨，直接在腦海中迴盪，『你一生都在「觀看」。你目睹鄰居被暴力討債卻拉上了窗簾；你知道公司排放毒廢料卻為了獎金簽下保密協定；你見過醫療疏失卻因為怕麻煩選擇沉默。』",
+                    "『你以為不作惡就是無辜？不，你的沉默是最大的幫兇。你的不作為，造就了今天的地獄。』",
+                    "『規則很簡單：房間氧氣僅剩十分鐘。必須有一人消失，其他四人才能存活。今天對你的懲罰，就是剝奪你「旁觀」的權利。』",
+                    "你低下頭，看著手中沉甸甸的槍。這不是金屬的重量，而是人命的重量。你看向周圍的四個「罪人」，他們的罪行檔案如幻燈片般在你眼前展開，每一個字都沾著血。"
+                ],
+                characters: [
+                    { 
+                        name: "李董 (55歲) - 【貪婪】", 
+                        desc: "化工廠老闆。為了省下每年兩百萬的廢水處理費，他指示深夜偷排劇毒廢液。這導致下游村莊三十人罹癌死亡，畸形兒出生率飆升。事發後，他忙著將資產轉移到海外信託，並在高級餐廳對受害者律師說：「窮人的命是消耗品，哪有我的股價值錢？」" 
+                    },
+                    { 
+                        name: "小雅 (22歲) - 【怠惰】", 
+                        desc: "加護病房護理師。值夜班時為了和網戀對象視訊，嫌心律監測器太吵而將其靜音。當她發現病患心跳停止時，已經過了一小時，錯過了黃金急救時間。她在事後報告上寫：「儀器故障」，並繼續在社群媒體上發自拍，配文：「今天又是辛苦救人的一天，求安慰。」" 
+                    },
+                    { 
+                        name: "阿彪 (30歲) - 【暴怒】", 
+                        desc: "討債集團金牌打手。性格暴躁，崇尚絕對武力。只因一名單親父親還款時少了一百元，他在眾目睽睽之下，用金屬球棒活活打死了對方。他享受骨頭碎裂的聲音，那讓他感到「強大」與「活著」。被捕前，他還威脅死者的女兒：「敢報警，下一個就是妳。」" 
+                    },
+                    { 
+                        name: "陳教授 (60歲) - 【傲慢】", 
+                        desc: "學術界權威，物理學泰斗。當他的一名天才博士生發現了他成名理論中的致命錯誤時，他沒有感謝，而是利用學術地位封殺該學生，污衊其抄襲，逼其退學。學生最終患上重度憂鬱症跳樓身亡。陳教授在學生的葬禮上優雅致詞：「可惜了，心智脆弱的人不適合科學殿堂。」" 
+                    }
+                ],
+                choices: [
+                    { text: "殺掉李董 (貪婪)", next: "bad_ending_money", tag: "GAME OVER" },
+                    { text: "殺掉小雅 (怠惰)", next: "bad_ending_medic", tag: "GAME OVER" },
+                    { text: "殺掉阿彪 (暴怒)", next: "chapter2", tag: "正確路徑" },
+                    { text: "殺掉陳教授 (傲慢)", next: "bad_ending_brain", tag: "GAME OVER" }
+                ]
+            },
+            chapter2: {
+                title: "第二章：怠惰的代價",
+                visual: <ChairVisual />,
+                content: [
+                    "「砰！」",
+                    "槍聲在狹小的空間裡震耳欲聾。阿彪（暴怒）眉心中彈，壯碩的身軀像斷了線的木偶般向後倒去，重重撞在牆上。他死前甚至來不及露出恐懼，眼裡只剩下錯愕——他這個一生施暴的人，終究死於更純粹、更冰冷的暴力。",
+                    "「暴力不能解決問題，但能解決製造問題的人。」你跨過他的屍體，感覺心臟狂跳，但手卻出奇地穩。這就是殺人的感覺嗎？",
+                    "氣密門伴隨著液壓洩氣聲緩緩打開。你們穿過陰暗的長廊，來到了充滿機油味的發電機房。這裡的溫度極高，汗水瞬間濕透了背脊。",
+                    "盡頭是一座通往地面的貨運電梯，但操作面板一片漆黑。旁邊的主發電機冒著黑煙，關鍵的電路已經燒成焦炭。",
+                    "機械音再次響起，帶著一絲殘酷的戲謔：『通往出口的電梯需要巨大的啟動能量。可惜，這裡的保險絲已經熔斷。我們需要一個「導體」，一個能夠承受高壓電流穿過身體整整10秒鐘的血肉之軀。』",
+                    "房間中央有一張金屬電椅，連接著斷裂的兩端電纜。警告燈閃爍著紅光，彷彿在預告即將發生的慘劇。",
+                    "機械音意有所指地轉向了角落裡發抖的小雅：『有些人，在該履行職責的時候選擇了滑手機、談戀愛（怠惰）。她曾經為了自己的輕鬆，讓別人在寂靜中死去。那麼現在，命運是公平的，她該用尖叫與痛苦來償還那份被她遺棄的「工作」了。』",
+                    "小雅聽懂了，她崩潰地後退，淚水沖刷著臉上的污垢：「不！不要！我不想死！我以後會認真工作的！求求你！我有錢，我可以給你...」她的求饒顯得如此蒼白無力，李董和陳教授都冷冷地看著她，眼神中沒有同情，只有求生的渴望。"
+                ],
+                choices: [
+                    { text: "強迫李董 (貪婪者不該死在這)", next: "bad_ending_greedy", tag: "GAME OVER" },
+                    { text: "強迫小雅 (讓怠惰者履行職責)", next: "chapter3", tag: "正確路徑" },
+                    { text: "強迫陳教授 (傲慢者拒絕配合)", next: "bad_ending_tech", tag: "GAME OVER" }
+                ]
+            },
+            chapter3: {
+                title: "第三章：貪婪的重量",
+                visual: <ScalesVisual />,
+                content: [
+                    "你用槍指著小雅，逼她坐上了電椅。她絕望的哭喊聲在你扣下開關的那一刻戛然而止。",
+                    "「滋——！」高壓電流瞬間貫穿了她纖細的身體。她曾經為了輕鬆而關閉警報，現在高壓電強迫她的每一根神經、每一塊肌肉都在劇烈地「工作」，直到燒斷。空氣中瀰漫著令人作嘔的焦肉味，那是怠惰者最後的貢獻。",
+                    "10秒後，電流停止。小雅像個破布娃娃般癱軟在椅子上，不再動彈。電梯的綠燈亮了。",
+                    "你們三人衝進電梯，門剛關上，電梯開始急速上升。然而，僅僅過了三十秒，電梯猛地一震，卡在了半空中。漆黑的電梯井中，只有螢幕發出的幽光。",
+                    "螢幕顯示：『罪惡審判層』。",
+                    "機械音：『電梯的承重系統不僅計算物理重量，更計算「道德重量」。現在，載具過重，只有拋棄最沉重的罪惡，其他人才能繼續上升。』",
+                    "李董臉色慘白，他瘋狂地打開公事包，將成疊的美金撒在地上，跪在地上抓著你的褲腳：『錢！我有錢！我可以買下這台電梯！我可以買下這座工廠！只要你讓我活著，你要多少我都給！一億？十億？』",
+                    "機械音發出了一聲嗤笑：『看啊，這個可悲的生物。他一生都在用金錢衡量人命（貪婪）。他以為地獄的守門人也收賄賂。現在，讓我們看看他的靈魂和那些骯髒的紙張，哪個比較重。』",
+                    "電梯地板中央的感應門發出咔噠聲，緩緩打開，下面是深不見底的黑暗深淵，隱約能聽到風的呼嘯聲。"
+                ],
+                choices: [
+                    { text: "處決陳教授 (傲慢不是最重的)", next: "bad_ending_no_exit", tag: "GAME OVER" },
+                    { text: "處決李董 (讓貪婪者墜落)", next: "chapter4", tag: "正確路徑" }
+                ]
+            },
+            chapter4: {
+                title: "最終章：傲慢的終局",
+                visual: <ExitVisual />,
+                content: [
+                    "你一把揪住李董的領帶，將他推向了深淵。他試圖抓住邊緣，指甲在金屬地板上刮出刺耳的聲音。「不！我的錢！我的——」",
+                    "他的慘叫聲隨著墜落迅速遠去，最終歸於死寂。那些漫天飛舞的美鈔也隨之飄落，像是一場荒謬的葬禮紙錢。",
+                    "電梯繼續上升，終於到達了頂層。門開了，眼前是一條潔白的長廊，盡頭是一扇厚重的鋼鐵大門，上面寫著大大的「EXIT」。",
+                    "然而，當你們兩人踏入長廊，身後的電梯門迅速鎖死。機械音最後一次響起，帶著最終審判的莊嚴：『恭喜抵達終點。但很遺憾，出口的生物掃描儀只能登錄並釋放**一個人**。若在一分鐘內偵測到兩人，房間將釋放神經毒氣，無人生還。』",
+                    "這是一個零和博弈。",
+                    "你握緊了槍，轉頭看向陳教授。但他沒有絲毫恐懼，反而發出了一陣低沉的笑聲。他慢條斯理地整理了一下衣領，推了推眼鏡，從口袋裡掏出了一把尖銳的螺絲起子——那是他在發電機房趁亂藏起來的。",
+                    "「年輕人，你是不是想舉槍對著我？」陳教授的眼神充滿了居高臨下的嘲弄，就像他當年看著那個跪在地上求情的學生一樣。",
+                    "「別演了。在第一關你開了一槍殺了阿彪。那把左輪手槍......根據重量分佈和轉輪聲音，裡面只有一顆子彈吧？」他一步步向你逼近，手中的螺絲起子閃著寒光。",
+                    "「你以為你是審判者？不，你只是運氣好被選中的工具人。我的大腦是人類的瑰寶，而你，只是一個無足輕重、容易被操弄的『冷漠』凡人。論智商，你贏不了我；論武器，你現在是廢鐵。去死吧，為了科學的存續。」",
+                    "他堅信自己的價值高於一切，這種深入骨髓的『傲慢』讓他忽視了，即使是凡人，在絕境中也擁有獠牙。"
+                ],
+                choices: [
+                    { text: "【空槍博弈】舉槍瞄準眉心，賭他恐懼", next: "bad_ending_bluff" },
+                    { text: "【近身肉搏】把槍砸過去，硬拼體能", next: "bad_ending_fight" },
+                    { text: "【尋找破綻】假裝崩潰求饒，伺機反擊", next: "good_ending" },
+                    { text: "【觀察環境】尋找通風口或機關", next: "secret_ending_check" }
+                ]
+            },
+            // --- Endings ---
+            good_ending: {
+                title: "結局：變數與代價",
+                visual: <ExitVisual />,
+                content: [
+                    "你深吸一口氣，手中的槍滑落。「你贏了...求求你...別殺我...」你雙膝跪地，聲音顫抖，演繹著一個崩潰的弱者。",
+                    "陳教授停下了腳步，嘴角的譏諷更深了。這極大地滿足了他身為「上位者」的傲慢。他放鬆了警惕，正如他當年輕視那個學生一樣，他認為你已經喪失了反抗的意志。",
+                    "「明智的選擇。作為獎勵，我會讓你死得痛快點。」他走到你面前，舉起螺絲起子準備刺向你的後頸。",
+                    "就是現在！",
+                    "你原本抱頭的雙手猛地向上暴起，死死抓住了他的手腕。腎上腺素爆發，你用頭狠狠撞向他的鼻樑。骨裂聲響起，陳教授痛呼一聲，你趁機奪過那把鋒利的螺絲起子，將這最後的「變數」狠狠刺入了他的胸膛。",
+                    "一下。兩下。三下。",
+                    "鮮血濺在潔白的牆上，像是一幅狂亂的抽象畫。陳教授倒在血泊中，眼鏡碎裂，眼神中充滿了難以置信——他算盡了物理法則與概率，卻唯獨算漏了人心的狡詐與求生的獸性。",
+                    "倒數計時歸零。大門轟然開啟，刺眼的陽光灌滿了走廊，吞沒了身後的血腥。",
+                    "機械音：『偵測到生命體數量修正：1。生存條件達成。冷漠的旁觀者，你終於不再觀看，而是親手弄髒了自己的手。恭喜畢業。』",
+                    "你踉蹌地走出大門，風吹過你沾滿鮮血的臉龐。你活了下來。但你知道，從今以後，那些死者的尖叫將永遠迴盪在你的腦海中。你殺死了所有的罪，最後卻成了唯一的罪人。"
+                ],
+                isEnd: true,
+                status: "success",
+                epilogue: "【後日談：編號 #739 - 覺醒與夢魘】\n\n倖存者被發現時精神狀態極不穩定，身上沾滿了四個人的血跡。\n警方封鎖了那座廢棄的自來水廠地下室，但搜查結果令人震驚：現場除了幾張破舊的椅子，並沒有任何機關、擴音器或屍體。\n\n心理醫生最終診斷：「重度創傷後解離症（PTSD）併發被害妄想。現場並沒有其他人，那四個『死者』，可能從一開始就不存在。」\n\n事實上，那四個「死者」正是主角過去在社會新聞中選擇漠視的四個真實案例。\n因為長期的潛意識愧疚，他的精神分裂出了這四個人格。\n這場死亡遊戲，是他內心深處為了懲罰自己的「冷漠」而構建的審判庭。\n\n他殺死了貪婪、怠惰、暴怒與傲慢，以為這樣就能獲得救贖。\n但他看著鏡子裡的自己，那個眼神依然空洞。\n真正的地獄不是那個房間，而是從那裡走出來之後的人生。"
+            },
+            secret_ending_true: {
+                title: "隱藏結局：系統錯誤",
+                visual: <SecretVisual />,
+                content: [
+                    "你看著步步進逼的陳教授，又看了看那個機械音的來源。突然間，你意識到了什麼。",
+                    "你沒有選擇殺戮，而是選擇了拒絕。你拒絕成為這場荒謬劇本的演員，拒絕在被設計好的選項中做選擇。",
+                    "你猛地轉身，把手中的空槍當作投擲物，用盡全力砸向牆上的火災警報器與通風口總成。",
+                    "「哐！」玻璃碎裂，紅色的警示燈瘋狂閃爍，刺耳的警鈴聲大作，掩蓋了機械音的倒數。",
+                    "機械音突然出現了雜訊與卡頓：『錯...誤...錯誤...執行者...拒絕...執行...邏輯...崩潰...』",
+                    "整個房間的燈光開始閃爍，出口大門的電子鎖因為系統重啟而失效，「咔嚓」一聲彈開了縫隙。",
+                    "陳教授愣住了，他引以為傲的邏輯無法解釋這種非理性的破壞。你回頭看了他一眼：「還不走？還是你要留在這裡算概率？」",
+                    "陳教授面色複雜地看了你一眼，收起了螺絲起子。你們兩人一前一後，衝出了那扇門。",
+                    "陽光刺眼，警笛聲在遠處響起。你們逃出來了，不是作為唯一的倖存者，而是作為規則的破壞者。"
+                ],
+                isEnd: true,
+                status: "success",
+                epilogue: "【後日談：編號 #ERROR - 拒絕】\n\n這場死亡遊戲的目的是測試「冷漠者」在極端壓力下是否會轉變為「加害者」。\n根據AI模型預測，99.9%的受試者都會為了生存而殺人，無論是出於恐懼還是算計。\n\n但你選擇了那0.1%的選項——拒絕這套劇本。\n當你打破警報器的那一刻，你不僅打破了遊戲的邏輯，也打破了你心中「無能為力」的魔咒。\n\n陳教授後來成了一名專門揭發黑暗科技實驗的吹哨者，而你，收到了一封沒有寄件人的郵件：\n「恭喜找到漏洞。你不再是旁觀者，也不是劊子手。你是反抗者。」\n\n(已解鎖成就：駭客思維)"
+            },
+            bad_ending_money: {
+                title: "結局：暴力的反噬",
+                visual: <SkullVisual />,
+                content: [
+                    "你被李董的話語激怒，或者只是單純仇富，你將槍口轉向了李董，扣下了扳機。",
+                    "「砰！」李董倒下。但就在你開槍的後座力讓你分神的瞬間，一陣劇痛從你的脖子傳來。",
+                    "阿彪（暴怒）不知何時已經衝到了你面前。他那雙充滿血絲的眼睛瞪著你，嘴角帶著殘忍的笑：「蠢貨！在這個弱肉強食的地方，你竟然先殺出錢的老闆？你搞不清楚誰才是這裡的老大。」",
+                    "「喀嚓！」那是你頸椎斷裂的聲音。",
+                    "你的視線迅速變黑。在失去意識前，你聽到了機械音的嘲笑：『執行者判定失格。未能識別最大威脅。』",
+                    "【提示】第一關的威脅是「暴力」，請優先排除持有武力的人。阿彪是你無法掌控的變數。"
+                ],
+                isEnd: true, status: "fail", cause: "死因：戰術判斷錯誤，被暴力反殺。"
+            },
+            bad_ending_medic: {
+                title: "結局：無醫者",
+                visual: <SkullVisual />,
+                content: [
+                    "你認為小雅是累贅，或者單純討厭她的哭聲。你開槍殺了她。她死前的眼神充滿了怨恨。",
+                    "然而，報應來得比想像中快。在前往發電機房的黑暗走廊中，為了躲避崩塌的管線，你的大腿被一根生鏽的鋼筋深深劃破。",
+                    "血流如注。你按著傷口，臉色蒼白地看向其他人。李董只會尖叫，陳教授冷漠地看著你的傷口：「動脈破裂，沒有止血鉗和專業手法，你在三分鐘內就會休克。可惜，唯一的護士已經死了。」",
+                    "你靠在冰冷的牆上，意識逐漸模糊。你在死前想起了小雅的哭喊，如果你當時選擇了寬恕，或許現在還有人能救你。你曾經漠視醫療疏失，現在你因缺乏醫療而死。因果循環。",
+                    "【提示】隊伍中唯一的醫生是重要的資源，第一關不該殺她。"
+                ],
+                isEnd: true, status: "fail", cause: "死因：失血過多，缺乏醫療支援。"
+            },
+            bad_ending_brain: {
+                title: "結局：死胡同",
+                visual: <SkullVisual />,
+                content: [
+                    "你受夠了陳教授的傲慢，一槍崩了他。世界清靜了，沒有了那個討厭的聲音。",
+                    "但當你們來到發電機房，面對複雜的液壓系統、密碼鎖與電路面板，你們徹底傻眼了。",
+                    "「這...這要怎麼接？紅線還是藍線？」李董試圖亂按按鈕，結果觸發了防衛機制，所有門窗瞬間鎖死。",
+                    "「警告：錯誤操作。系統封鎖。」機械音無情地宣判。",
+                    "氧氣耗盡。你們三人看著彼此，在絕望中窒息而死。暴力可以解決人，但解決不了物理難題。傲慢的人雖然討厭，但他的知識是過關的關鍵。",
+                    "【提示】別殺死唯一的技術人員，除非你確定不再需要大腦。"
+                ],
+                isEnd: true, status: "fail", cause: "死因：缺氧，機關破解失敗。"
+            },
+            bad_ending_greedy: {
+                title: "結局：無用的犧牲",
+                visual: <SkullVisual />,
+                content: [
+                    "你選擇了強迫李董坐上電椅。他像一頭被逼急的豬，瘋狂掙扎，亂踢亂踹。",
+                    "「放開我！我有錢！你們這群窮鬼！」他在被電流擊中前的一秒，猛地一腳踹壞了旁邊裸露的控制面板。",
+                    "「滋——！」電流通過了他的身體，但他死前的破壞導致備用迴路燒毀，電梯門只開了一半就卡住了。",
+                    "陳教授絕望地看著冒煙的面板：「蠢貨！貪婪者寧願毀掉一切也不願貢獻自己！你選錯了犧牲品！」",
+                    "電梯無法啟動。你們被困在充滿焦屍味的房間裡，直到餓死。",
+                    "【提示】這一關需要一個因為「怠惰」而虧欠職責的人來償還，貪婪者的反撲會毀了一切。"
+                ],
+                isEnd: true, status: "fail", cause: "死因：硬體損壞，受困。"
+            },
+            bad_ending_tech: {
+                title: "結局：永遠的囚籠",
+                visual: <SkullVisual />,
+                content: [
+                    "你把陳教授推上了電椅。他沒有掙扎，只是死死盯著你，嘴角帶著詭異的笑：「你會後悔的...凡人。」",
+                    "電梯確實通電了，你和李董衝進電梯。但當門關上後，螢幕上出現了一個複雜的複變函數密碼鎖。",
+                    "你和李董面面相覷。沒有人知道答案。陳教授沒有說謊，他是唯一能操作的人，他在死前啟動了加密程序。",
+                    "電梯卡在半空中。你們坐在通著電的鐵棺材裡，哪也去不了，只能在漫長的等待中發瘋。",
+                    "【提示】現在還不是殺死智者的時候，你需要他的大腦直到最後一刻。"
+                ],
+                isEnd: true, status: "fail", cause: "死因：無法解碼，受困。"
+            },
+            bad_ending_no_exit: {
+                title: "結局：無法開啟的門",
+                visual: <SkullVisual />,
+                content: [
+                    "你認為陳教授太過冷血，決定處決他。你看著他墜入深淵，帶著李董到達頂層。",
+                    "出口大門緊閉。門上只有一個視網膜掃描儀和一個鍵盤。",
+                    "「快開門啊！」李董哭喊著，用錢砸著大門。",
+                    "機械音宣告時間結束：『未偵測到有效解鎖指令。』綠色的毒氣從通風口噴出。",
+                    "陳教授早就看穿了這一切，他或許知道密碼，但他已經死了。這是一場需要大腦到最後一刻的遊戲，而你把大腦丟掉了。",
+                    "【提示】這一關要衡量的是「貪婪」的重量，而不是傲慢。"
+                ],
+                isEnd: true, status: "fail", cause: "死因：神經毒氣，解謎失敗。"
+            },
+            bad_ending_bluff: {
+                title: "結局：理性的看穿",
+                visual: <SkullVisual />,
+                content: [
+                    "你舉起空槍，眼神堅定，試圖用氣勢嚇退他。但陳教授是個物理學家，也是個極致的理性主義者。",
+                    "他沒有停下腳步，甚至沒有眨眼。「質量守恆，彈藥消耗。你的恐懼出賣了你。那把槍的重量，少了一顆子彈。」",
+                    "他精準地計算了你的反應時間。螺絲起子精準地刺入你的頸動脈。",
+                    "他在你耳邊低語：「永遠不要在數學家面前賭博。」你死在了邏輯的刀下。",
+                    "【提示】你的對手是絕對理性，虛張聲勢沒有用。"
+                ],
+                isEnd: true, status: "fail", cause: "死因：博弈失敗，被刺殺。"
+            },
+            bad_ending_fight: {
+                title: "結局：體能劣勢",
+                visual: <SkullVisual />,
+                content: [
+                    "你把槍當作磚頭砸過去，怒吼著衝向他，試圖利用年輕人的體能優勢。",
+                    "但長期的飢餓、缺氧與精神壓力讓你動作遲緩。而你的「冷漠」讓你疏於鍛鍊，無法應對真正的生死搏鬥。",
+                    "陳教授雖然年老，但他手裡有致命的武器，且下手毫不猶豫。他側身避開你的衝撞，手中的螺絲起子像是手術刀一樣，深深刺入你的後心。",
+                    "你的力氣迅速流失。你倒在地上，最後看到的畫面是他整理衣袖，冷冷地跨過你的身體走向出口。",
+                    "【提示】硬拼不是辦法，尋找非對稱的攻擊機會（詐術）。"
+                ],
+                isEnd: true, status: "fail", cause: "死因：格鬥失敗，被刺殺。"
+            },
+            bad_ending_observe: {
+                title: "結局：時間耗盡",
+                visual: <SkullVisual />,
+                content: [
+                    "你不想殺人，試圖尋找通風口或破壞感應器。",
+                    "「別白費力氣了，這裡的結構是完美的。」陳教授冷笑著靠在牆邊看著你瞎忙。",
+                    "一分鐘很快就過去。兩人都還活著，違反規則。",
+                    "「清理程序啟動。」",
+                    "高濃度的神經毒氣瞬間充滿走廊。你們兩人都倒在出口前，手指距離自由的門把只有幾公分。在這個遊戲裡，猶豫就是死亡。",
+                    "【提示】猶豫就會敗北。如果沒觸發隱藏條件，就只能選擇戰鬥。"
+                ],
+                isEnd: true, status: "fail", cause: "死因：猶豫不決，全員處決。"
+            }
+        };
+
+        const Typewriter = ({ text, onComplete }) => {
+            const [display, setDisplay] = useState("");
+            
+            useEffect(() => {
+                let i = 0;
+                setDisplay(""); 
+                const timer = setInterval(() => {
+                    if (i < text.length) {
+                        setDisplay(text.substring(0, i + 1));
+                        i++;
+                    } else {
+                        clearInterval(timer);
+                        if (onComplete) onComplete();
+                    }
+                }, 20); 
+                return () => clearInterval(timer);
+            }, [text, onComplete]);
+
+            return (
+                <span className="text-phosphor">
+                    {display}
+                    <span className="typewriter-cursor"></span>
+                </span>
+            );
+        };
+
+        const App = () => {
+            const [sceneId, setSceneId] = useState("start");
+            const [textIndex, setTextIndex] = useState(0);
+            const [showChoices, setShowChoices] = useState(false);
+            const [history, setHistory] = useState([]);
+            
+            const currentScene = gameData[sceneId];
+            const content = currentScene.content;
+            
+            const scrollRef = useRef(null);
+
+            useEffect(() => {
+                if (scrollRef.current) {
+                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                }
+            }, [history, textIndex, showChoices]);
+
+            const handleNextText = () => {
+                if (textIndex < content.length - 1) {
+                    setTextIndex(prev => prev + 1);
+                } else {
+                    setShowChoices(true);
+                }
+            };
+
+            const handleChoice = (nextId) => {
+                if (nextId === 'secret_ending_check') {
+                    const chance = Math.random();
+                    if (chance > 0.8) {
+                        setHistory(prev => [...prev, ...content]);
+                        setSceneId('secret_ending_true');
+                        setTextIndex(0);
+                        setShowChoices(false);
+                        return;
+                    } else {
+                        nextId = 'bad_ending_observe';
+                    }
+                }
+
+                setHistory(prev => [...prev, ...content]);
+                setSceneId(nextId);
+                setTextIndex(0);
+                setShowChoices(false);
+            };
+
+            const restart = () => {
+                setSceneId("start");
+                setTextIndex(0);
+                setShowChoices(false);
+                setHistory([]);
+            };
+
+            const isGameEnd = currentScene.isEnd;
+
+            return (
+                <div className="crt-wrapper">
+                    <div className="crt-screen">
+                        <div className="scanlines"></div>
+                        <div className="noise"></div>
+                        <div className="vignette"></div>
+                        <div className="scan-bar"></div>
+                        
+                        <div className="relative z-50 w-full h-full flex flex-col items-center justify-center p-2 md:p-4">
+                            <div className="w-full max-w-3xl h-[95vh] md:h-[90vh] ui-panel flex flex-col relative rounded-sm">
+                                
+                                {/* Header */}
+                                <div className="bg-red-950/20 p-4 border-b border-red-900/30 flex justify-between items-center shrink-0">
+                                    <h1 className="text-lg md:text-xl font-bold text-red-600 tracking-[0.2em] uppercase truncate mr-4 glitch-text" style={{fontFamily: 'Share Tech Mono'}}>
+                                        DEATH_GAME_PROTOCOL
+                                    </h1>
+                                    <div className="flex gap-2 text-xs text-red-500 font-mono shrink-0 items-center">
+                                        <span>SYS_RDY</span>
+                                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                    </div>
+                                </div>
+
+                                {/* Main Content */}
+                                <div ref={scrollRef} className="flex-1 p-4 md:p-8 overflow-y-auto font-lg leading-relaxed scroll-smooth">
+                                    
+                                    {/* Visual Scene */}
+                                    {currentScene.visual && textIndex === 0 && (
+                                        <div className="animate-pulse duration-1000">
+                                            {currentScene.visual}
+                                        </div>
+                                    )}
+
+                                    {/* History Text */}
+                                    {history.map((line, i) => (
+                                        <p key={i} className="text-gray-500 mb-2 border-l-2 border-gray-800 pl-4 text-sm md:text-base opacity-70">{line}</p>
+                                    ))}
+
+                                    {/* Title */}
+                                    {textIndex === 0 && (
+                                        <div className="mb-6 mt-4">
+                                            <h2 className="text-2xl md:text-3xl font-bold text-red-500 mb-2 tracking-wide glitch-text">
+                                                {currentScene.title}
+                                            </h2>
+                                            <div className="h-px w-full max-w-[200px] bg-gradient-to-r from-red-700 to-transparent"></div>
+                                        </div>
+                                    )}
+
+                                    {/* Typewriter Text */}
+                                    <div className="text-lg md:text-xl text-gray-200 min-h-[80px] mb-4 font-medium tracking-wide text-phosphor">
+                                        <Typewriter 
+                                            key={`${sceneId}-${textIndex}`} 
+                                            text={content[textIndex]} 
+                                            onComplete={() => {
+                                                if (textIndex === content.length - 1) {
+                                                    setTimeout(() => setShowChoices(true), 800);
+                                                }
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Characters (Intro) */}
+                                    {sceneId === 'start' && textIndex > 2 && !showChoices && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
+                                            {currentScene.characters.map((char, i) => (
+                                                <div key={i} className={`bg-gray-900/60 p-3 rounded border text-sm transition-colors ${char.name.includes("你") ? "border-blue-800 hover:border-blue-500 text-blue-100" : "border-red-900/50 hover:border-red-500 text-red-100"}`}>
+                                                    <div className={`font-bold mb-1 ${char.name.includes("你") ? "text-blue-400" : "text-red-400"}`}>{char.name}</div>
+                                                    <div className="text-gray-400 leading-snug">{char.desc}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Report Box (End) */}
+                                    {isGameEnd && showChoices && (
+                                        <div className={`mt-8 p-6 rounded border report-pattern animate-slide-up transition-all duration-1000 ${currentScene.status === 'success' ? 'bg-green-900/10 border-green-800 text-green-100' : 'bg-red-900/10 border-red-800 text-red-100'}`}>
+                                            <h3 className={`text-xl font-bold mb-4 border-b pb-2 flex items-center gap-2 ${currentScene.status === 'success' ? 'border-green-700' : 'border-red-700'}`}>
+                                                <LucideFileText className="w-5 h-5"/>
+                                                {currentScene.status === 'success' ? 'MISSION_REPORT' : 'TERMINATION_CAUSE'}
+                                            </h3>
+                                            <p className="whitespace-pre-wrap leading-relaxed font-mono text-sm md:text-base opacity-90 text-phosphor">
+                                                {currentScene.status === 'success' ? currentScene.epilogue : currentScene.cause}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Controls */}
+                                <div className="p-4 md:p-6 border-t border-red-900/30 bg-gray-900/60 min-h-[120px] flex flex-col justify-end shrink-0">
+                                    {!showChoices && (
+                                        <button 
+                                            onClick={handleNextText}
+                                            className="w-full py-3 text-center text-gray-400 hover:text-white border border-gray-700 hover:border-red-500 hover:bg-red-900/20 transition-all active:scale-[0.99] flex items-center justify-center gap-2 group"
+                                        >
+                                            <span className="group-hover:translate-y-1 transition-transform">▼</span> 點擊繼續
+                                        </button>
+                                    )}
+
+                                    {showChoices && !isGameEnd && (
+                                        <div className="grid grid-cols-1 gap-2 md:gap-3">
+                                            {currentScene.choices.map((choice, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handleChoice(choice.next)}
+                                                    className={`w-full py-4 px-5 text-left border bg-black/60 text-gray-300 hover:text-white transition-all group flex items-center justify-between rounded-sm relative overflow-hidden ${choice.tag === '正確路徑' ? 'border-red-900/30 hover:bg-red-900/20 hover:border-red-500' : 'border-gray-800 hover:bg-gray-800 hover:border-gray-500'}`}
+                                                >
+                                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                    <span className="font-medium pl-2">
+                                                        <span className="text-red-600 mr-2 font-mono">0{idx + 1}.</span> 
+                                                        {choice.text}
+                                                    </span>
+                                                    <LucideChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 text-red-500 transition-opacity transform group-hover:translate-x-1" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {isGameEnd && showChoices && (
+                                        <div className="text-center py-2">
+                                            <p className={`text-4xl md:text-5xl font-bold mb-6 tracking-[0.2em] drop-shadow-lg glitch-text ${currentScene.status === 'success' ? 'text-green-500' : 'text-red-600'}`}>
+                                                {currentScene.status === 'success' ? 'SURVIVED' : 'DEAD END'}
+                                            </p>
+                                            <button 
+                                                onClick={restart}
+                                                className="px-10 py-3 bg-red-900/20 hover:bg-red-900/40 text-red-100 rounded-sm border border-red-800 uppercase tracking-widest transition-all hover:shadow-[0_0_15px_rgba(220,38,38,0.4)] text-sm md:text-base font-mono"
+                                            >
+                                                REBOOT_SYSTEM()
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const LucideChevronRight = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="m9 18 6-6-6-6"/>
+            </svg>
+        );
+
+        const LucideFileText = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+            </svg>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
